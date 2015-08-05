@@ -19,6 +19,7 @@
 
 from pprint import pprint
 import sys
+import random
 import re
 import argparse
 import requests
@@ -103,9 +104,6 @@ class Menu(object):
         for commentInput in self.menu_["commentInputs"]:
             payload[commentInput["name"]] = str(commentInput["comment"])
 
-        print(urlToPost)
-        for k in payload:
-            print(k + ": " + payload[k])
         session.post(urlToPost, data=payload)
 
 def getLoginPostUrl(session):
@@ -144,7 +142,6 @@ def login(session):
     }
 
     urlToPost = getLoginPostUrl(session)
-    print(urlToPost)
     session.post(urlToPost, data=data)
 
     return session.cookies.get('INDIVIDUAL_KEY')
@@ -159,15 +156,13 @@ def cli(args):
 
     for orderUrl in getOrderUrl(s):
         menu = Menu(s, orderUrl)
-        item1 = menu.getItemNameList()[0]
-        item2 = menu.getItemNameList()[2]
-        menu.setItemQty(item1, 3)
-        menu.setItemQty(item2, 1)
-        menu.setItemComment(item1, "YoYo")
-        menu.setItemComment(item2, "GoGo")
-        print(item1)
-        print(item2)
+        itemCount = len(menu.getItemNameList())
+        itemIndexToOrder = random.randrange(0, itemCount)
+        itemNameToOrder = menu.getItemNameList()[itemIndexToOrder]
+        menu.setItemQty(itemNameToOrder, 9)
+        menu.setItemComment(itemNameToOrder, "You can run but you can't hide")
         menu.sendOrder(s)
+        print("You have ordered \'%s\' as \'%s\'!" % (itemNameToOrder, username_for_ordering))
         break
 
 if __name__ == "__main__":
