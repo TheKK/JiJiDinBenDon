@@ -18,6 +18,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 import sys
+import re
 import argparse
 import requests
 from bs4 import BeautifulSoup
@@ -26,6 +27,50 @@ BENDON_SITE = "https://dinbendon.net"
 
 username = ""
 password = ""
+username_for_order = ""
+
+def getLoginPostUrl(session):
+    id = session.cookies.get('JSESSIONID')
+    return (BENDON_SITE + "/do/;jsessionid=" + id +
+            "?wicket:interface=:0:signInPanel:signInForm::IFormSubmitListener")
+
+def getOrderUrl(session):
+    r = session.get(BENDON_SITE + "/do")
+    soup = BeautifulSoup(r.text, 'lxml')
+    urlsToReturn = []
+
+    for dom in soup.find_all('tr', id=re.compile('inProgressBox_inProgressOrders_\d+')):
+        AllA = dom.find_all('a')
+        if not len(AllA) == 4:
+            continue
+
+        href = AllA[3]['href']
+        print(href)
+        urlsToReturn.append(BENDON_SITE + href)
+
+    return urlsToReturn
+
+def login(session):
+    r = session.get(BENDON_SITE + "/do/login")
+    soup = BeautifulSoup(r.text, 'lxml')
+
+    # Since cpacha here is the form of '1+49=', we can easily get result
+    capcha = soup.select('td')[6].text.rstrip('=')
+    exec('result = %s' % capcha)
+
+    data = {
+            "username":username,
+            "password":password,
+            "result":str(result),
+            "submit":"login",
+            "rememberMeRow:rememberMe":"on",
+            "signInPanel_signInForm:hf:0":""
+    }
+
+    urlToPost = getLoginPostUrl(session)
+    session.post(urlToPost, data=data)
+
+    return session.cookies.get('INDIVIDUAL_KEY')
 
 def getMenu(session, urlLink):
     orderReq = session.get(urlLink)
@@ -33,9 +78,18 @@ def getMenu(session, urlLink):
     menuToReturn = []
 
     for i in soup.find_all('tr', ['odd', 'even']):
+        name = i.find('td', 'productName').div.string
+        price = i.find('td', 'variationPrice').string
+
+        # Multiple prices
+        if price is None:
+            price = ''
+            for label in i.find('td', 'variationPrice').find_all('label'):
+                price = price.join(label.string + ' ')
+
         item = {
-                'name': i.find('td', 'productName').div.string,
-                'price': i.find('td', 'variationPrice').string
+                'name': name,
+                'price': price
         }
         menuToReturn.append(item)
 
@@ -44,30 +98,15 @@ def getMenu(session, urlLink):
 def cli(args):
     s = requests.Session()
 
-    r = s.get(BENDON_SITE + "/do/login")
+    login(s)
+
+    r = s.get(BENDON_SITE + "/do")
     soup = BeautifulSoup(r.text, 'lxml')
-    caculate = soup.select('td')[6].text.rstrip('=')
-    exec('result= %s' % caculate)
 
-    data = {
-            "password":password,
-            "rememberMeRow:rememberMe":"on",
-            "result":str(result),
-            "signInPanel_signInForm:hf:0":"",
-            "submit":"login",
-            "username":username
-    }
-
-    c = s.cookies.get('JSESSIONID')
-    url="https://dinbendon.net/do/;jsessionid="+ c +"?wicket:interface=:0:signInPanel:signInForm::IFormSubmitListener"
-    r = s.post(url, data=data)
-
-    soup = BeautifulSoup(r.text, 'lxml')
-    orderUrl = BENDON_SITE + soup.select('td')[3].select('a')[1]['href']
-    menuList = getMenu(s, orderUrl)
-    for i in menuList:
-        print(i["name"] + ": " + i["price"])
-
+    for orderUrl in getOrderUrl(s):
+        menu = getMenu(s, orderUrl)
+        for item in menu:
+            print(item["name"] + ": " + item['price'])
 
 if __name__ == "__main__":
     exit(cli(sys.argv[1:]))
