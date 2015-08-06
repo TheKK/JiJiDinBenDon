@@ -168,6 +168,9 @@ def cli(args):
     benDon = BenDonSession(username, password)
 
     orderings =  benDon.getInProgressOrderings()
+    if len(orderings) is 0:
+        print("There's no in progress ordering, please check it later")
+        return 0
 
     # Choose which ordering to order
     for i in range(0, 5):
