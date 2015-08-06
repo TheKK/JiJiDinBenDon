@@ -151,7 +151,7 @@ class Detail(object):
             price = tr.find_all('td')[2].div.string
             numYouOrder = tr.find('span', 'count').string.strip('x')
             nameUsedForOrdering = tr.find('td', 'cell').div.span.a.span.string
-            urlToPost = tr.find('td', 'cell').div.span.a['href']
+            urlToPost = BENDON_SITE + tr.find('td', 'cell').div.span.a['href']
 
             yourOrder = {
                           "productName": productName,
@@ -164,6 +164,18 @@ class Detail(object):
             self.detail_["yourOrders"].append(yourOrder)
 
         print(self.detail_["yourOrders"])
+
+    def getOrderingDetails(self):
+        return self.detail_["yourOrders"]
+
+    def hasOrderd(self):
+        return (len(self.detail_["yourOrders"]) != 0)
+
+    def deleteOrdering(self, session, ordering):
+        index = self.detail_["yourOrders"].index(ordering)
+        urlToPost = self.detail_["yourOrders"][index]["urlToPostToCancelOrdering"]
+
+        session.post(urlToPost)
 
 class BenDonSession(object):
     def __init__(self):
@@ -245,45 +257,84 @@ def cli(args):
         print("There's no in progress ordering, please check it later")
         return 0
 
-    # Choose which ordering to order
-    for i in range(0, len(orderings)):
-        ordering = orderings[i]
-        creator = ordering["creator"]
-        shopName = ordering["shopName"]
-        detailUrl = ordering["detailUrl"]
-        orderUrl = ordering["orderUrl"]
-        count = ordering["count"]
+    command = raw_input("What to do? [d]etail, [o]rder, [q]uit: ")
 
-        print("[%d] %s create %s, now %s people has ordered"
-              % (i, creator, shopName, count))
+    if command == "o":
+        # Choose which ordering to order
+        for i in range(0, len(orderings)):
+            ordering = orderings[i]
+            creator = ordering["creator"]
+            shopName = ordering["shopName"]
+            count = ordering["count"]
 
-    chosenOrdering = int(raw_input('which to order?'))
+            print("[%d] %s create %s, now %s people has ordered"
+                  % (i, creator, shopName, count))
 
-    # Choose which item you want for lunch
-    menu = Menu(benDon.session, orderings[chosenOrdering]["orderUrl"])
-    items = menu.getItemList()
-    itemCount = len(items)
+        chosenOrdering = int(raw_input('which to order?'))
 
-    for i in range(0, itemCount):
-        item = items[i]
+        # Choose which item you want for lunch
+        menu = Menu(benDon.session, orderings[chosenOrdering]["orderUrl"])
+        items = menu.getItemList()
+        itemCount = len(items)
 
-        print("[%d] %s\tprice: %s" % (i, item["name"], item["price"]))
+        for i in range(0, itemCount):
+            item = items[i]
 
-    choosenItem = int(raw_input('which to order? '))
-    orderQty = int(raw_input('quantity to order? '))
-    orderComment = raw_input('any comment? (default is nothing) ')
-    username_for_ordering = ""
-    while username_for_ordering is "":
-        username_for_ordering = raw_input("name for ordering? ")
+            print("[%d] %s\tprice: %s" % (i, item["name"], item["price"]))
 
-    # Give me your personal information for free
-    itemToOrder = items[choosenItem]
-    menu.setNameForOrdering(username_for_ordering)
-    menu.setItemQty(itemToOrder, orderQty)
-    menu.setItemComment(itemToOrder, orderComment)
-    menu.sendOrder(benDon.session)
-    print("You have ordered \'%s\' from \'%s\' as \'%s\'!"
-          % (itemToOrder["name"], orderings[chosenOrdering]["shopName"], username_for_ordering))
+        choosenItem = int(raw_input('which to order? '))
+        orderQty = int(raw_input('quantity to order? '))
+        orderComment = raw_input('any comment? (default is nothing) ')
+        username_for_ordering = ""
+        while username_for_ordering is "":
+            username_for_ordering = raw_input("name for ordering? ")
+
+        # Give me your personal information for free
+        itemToOrder = items[choosenItem]
+        menu.setNameForOrdering(username_for_ordering)
+        menu.setItemQty(itemToOrder, orderQty)
+        menu.setItemComment(itemToOrder, orderComment)
+        menu.sendOrder(benDon.session)
+
+        print("You have ordered \'%s\' from \'%s\' as \'%s\'!"
+              % (itemToOrder["name"], orderings[chosenOrdering]["shopName"], username_for_ordering))
+
+    elif command == "d":
+        # Choose which ordering to check
+        for i in range(0, len(orderings)):
+            ordering = orderings[i]
+
+            creator = ordering["creator"]
+            shopName = ordering["shopName"]
+            count = ordering["count"]
+
+            print("[%d] %s create %s, now %s people has ordered"
+                  % (i, creator, shopName, count))
+
+        chosenOrdering = int(raw_input('which order to check? '))
+
+        detail = Detail(benDon.session, orderings[chosenOrdering]["detailUrl"])
+        orderingDetails = detail.getOrderingDetails()
+
+        for i in range(0, len(orderingDetails)):
+            orderingDetail = orderingDetails[i]
+
+            productName = orderingDetail["productName"]
+            price = orderingDetail["price"]
+            qty = orderingDetail["qty"]
+            nameForOrdering = orderingDetail["nameForOrdering"]
+
+            print("[%d] %s %s$ x%s: %s"
+                  % (i, productName, price, qty, nameForOrdering))
+
+        command = raw_input("Now what? [c]ancel order, [q]uit ")
+
+        if command == "c":
+            whichToCancel = int(raw_input("Which one to cancel? "))
+
+            detail.deleteOrdering(benDon.session, orderingDetails[whichToCancel])
+
+            print("Canceled, bye!")
 
     benDon.saveCookies(cookieFilePath)
 
