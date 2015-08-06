@@ -19,8 +19,10 @@
 
 from pprint import pprint
 import sys
+import os.path
 import time
 import random
+import json
 import re
 import argparse
 import requests
@@ -108,11 +110,30 @@ class Menu(object):
         session.post(urlToPost, data=payload)
 
 class BenDonSession(object):
-    def __init__(self, username, password):
+    def __init__(self):
         self.session = requests.Session()
 
-        if not self.login_(username, password):
-            raise Exception("BenDonSession initialization falied")
+    def login(self, username, password):
+        r = self.session.get(BENDON_SITE + "/do/login")
+        soup = BeautifulSoup(r.text, 'lxml')
+        urlToPost = BENDON_SITE + soup.find('form', id='signInPanel_signInForm')['action']
+
+        # Since cpacha here is the form of '1+49=', we can easily get result
+        capcha = soup.select('td')[6].text.rstrip('=')
+        exec('result = %s' % capcha)
+
+        data = {
+                "username":username,
+                "password":password,
+                "result":str(result),
+                "submit":"login",
+                "rememberMeRow:rememberMe":"on",
+                "signInPanel_signInForm:hf:0":""
+        }
+
+        self.session.post(urlToPost, data=data)
+
+        return self.session.cookies.get('INDIVIDUAL_KEY')
 
     def getInProgressOrderings(self):
         r = self.session.get(BENDON_SITE + "/do")
@@ -142,30 +163,29 @@ class BenDonSession(object):
 
         return urlsToReturn
 
-    def login_(self, username, password):
-        r = self.session.get(BENDON_SITE + "/do/login")
-        soup = BeautifulSoup(r.text, 'lxml')
-        urlToPost = BENDON_SITE + soup.find('form', id='signInPanel_signInForm')['action']
+    def loadCookies(self, filePath):
+        cookieDict = {}
+        with open(filePath, "r") as fp:
+            cookieDict = json.load(fp)
+        self.session.cookies = requests.utils.cookiejar_from_dict(cookieDict)
+        print(cookieDict)
 
-        # Since cpacha here is the form of '1+49=', we can easily get result
-        capcha = soup.select('td')[6].text.rstrip('=')
-        exec('result = %s' % capcha)
-
-        data = {
-                "username":username,
-                "password":password,
-                "result":str(result),
-                "submit":"login",
-                "rememberMeRow:rememberMe":"on",
-                "signInPanel_signInForm:hf:0":""
-        }
-
-        self.session.post(urlToPost, data=data)
-
-        return self.session.cookies.get('INDIVIDUAL_KEY')
+    def saveCookies(self, filePath):
+        cookieDict = requests.utils.dict_from_cookiejar(self.session.cookies)
+        with open(filePath, "w") as fp:
+            fp.write(json.dumps(cookieDict))
+        print(cookieDict)
 
 def cli(args):
-    benDon = BenDonSession(username, password)
+    benDon = BenDonSession()
+    cookieFilePath = "cookie"
+
+    if os.path.isfile(cookieFilePath):
+        benDon.loadCookies(cookieFilePath)
+
+    benDon.login(username, password)
+    benDon.saveCookies(cookieFilePath)
+    return
 
     orderings =  benDon.getInProgressOrderings()
     if len(orderings) is 0:
@@ -173,7 +193,7 @@ def cli(args):
         return 0
 
     # Choose which ordering to order
-    for i in range(0, 5):
+    for i in range(0, len(orderings)):
         ordering = orderings[i]
         creator = ordering["creator"]
         shopName = ordering["shopName"]
