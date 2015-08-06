@@ -33,12 +33,32 @@ BENDON_SITE = "https://dinbendon.net"
 username = "guest"
 password = "guest"
 
+"""
+Formats
+=======
+
+    self.menu_ = {
+        "items": [
+           { "name": XXX, "price": XXX },
+           ...
+           ],
+        "qtyInputs": [
+            { "name": XXX, "qty": XXX }, #name, is the name of input section
+            ...
+        ],
+        "commentInputs": [
+            { "name": XXX, "comment": XXX }, #name, is the name of input section
+            ...
+        ],
+        "userInput": XXX,
+        "urlToPost": XXX
+
+"""
 class Menu(object):
     def __init__(self, session, url):
         self.menu_ = {}
         self.userNameForOrdering = ""
 
-        id = session.cookies.get('JSESSIONID')
         orderReq = session.get(url)
         soup = BeautifulSoup(orderReq.text, 'lxml')
         self.menu_['items'] = []
@@ -109,6 +129,42 @@ class Menu(object):
 
         session.post(urlToPost, data=payload)
 
+class Detail(object):
+    def __init__(self, session, url):
+        self.detail_ = {}
+
+        orderReq = session.get(url)
+        soup = BeautifulSoup(orderReq.text, 'lxml')
+        self.detail_["yourOrders"] = []
+
+        # tr here is in the form of:
+        #
+        # product name / No of items / Unit price / Who order ...
+        # AAA          / 1           / 30         / a / b / c ...
+        # AAA          / 1           / 30         / a / b / c ...
+        #
+        for tr in soup.find('table', 'tiles mergeView').find_all('tr'):
+            if tr.find('td', 'deletable') is None:
+                continue
+
+            productName = tr.find('td', 'mergeKey').div.string
+            price = tr.find_all('td')[2].div.string
+            numYouOrder = tr.find('span', 'count').string.strip('x')
+            nameUsedForOrdering = tr.find('td', 'cell').div.span.a.span.string
+            urlToPost = tr.find('td', 'cell').div.span.a['href']
+
+            yourOrder = {
+                          "productName": productName,
+                          "price": price,
+                          "qty": numYouOrder,
+                          "nameForOrdering": nameUsedForOrdering,
+                          "urlToPostToCancelOrdering": urlToPost
+                        }
+
+            self.detail_["yourOrders"].append(yourOrder)
+
+        print(self.detail_["yourOrders"])
+
 class BenDonSession(object):
     def __init__(self):
         self.session = requests.Session()
@@ -168,13 +224,11 @@ class BenDonSession(object):
         with open(filePath, "r") as fp:
             cookieDict = json.load(fp)
         self.session.cookies = requests.utils.cookiejar_from_dict(cookieDict)
-        print(cookieDict)
 
     def saveCookies(self, filePath):
         cookieDict = requests.utils.dict_from_cookiejar(self.session.cookies)
         with open(filePath, "w") as fp:
             fp.write(json.dumps(cookieDict))
-        print(cookieDict)
 
 def cli(args):
     benDon = BenDonSession()
@@ -184,9 +238,8 @@ def cli(args):
         benDon.loadCookies(cookieFilePath)
 
     benDon.login(username, password)
-    benDon.saveCookies(cookieFilePath)
-    return
 
+    # TODO Make ordering another class
     orderings =  benDon.getInProgressOrderings()
     if len(orderings) is 0:
         print("There's no in progress ordering, please check it later")
@@ -231,6 +284,8 @@ def cli(args):
     menu.sendOrder(benDon.session)
     print("You have ordered \'%s\' from \'%s\' as \'%s\'!"
           % (itemToOrder["name"], orderings[chosenOrdering]["shopName"], username_for_ordering))
+
+    benDon.saveCookies(cookieFilePath)
 
     return 0
 
