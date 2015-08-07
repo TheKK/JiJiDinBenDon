@@ -152,8 +152,6 @@ class Detail(object):
 
             self.detail_["yourOrders"].append(yourOrder)
 
-        print(self.detail_["yourOrders"])
-
     def getOrderingDetails(self):
         return self.detail_["yourOrders"]
 

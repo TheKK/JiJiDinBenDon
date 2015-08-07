@@ -23,12 +23,13 @@ import os.path
 import time
 import random
 import argparse
+import notify2
 import jijidinbendon as BenDon
 
 username = "guest"
 password = "guest"
 
-def cli(args):
+def interactiveMode (args):
     benDon = BenDon.BenDonSession()
     cookieFilePath = "cookie"
 
@@ -126,5 +127,78 @@ def cli(args):
 
     return 0
 
+def commandMode(args):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--check', action='store_true',
+                        help='check if all lunchs are ordered')
+    parser.add_argument('-r', action='store_true',
+                        help='randomly order any possilbe lunch')
+    parser.add_argument('-c', default="",
+                        help='ordering comment')
+    parser.add_argument('-n', default="BenDonRobot",
+                        help='ordering name')
+    parser.add_argument('-p', action='store_true',
+                        help='show popup message')
+    args = parser.parse_args(args)
+
+    benDon = BenDon.BenDonSession()
+    cookieFilePath = "cookie"
+    retVal = 0
+    comment = args.c
+    name = args.n
+
+    if os.path.isfile(cookieFilePath):
+        benDon.loadCookies(cookieFilePath)
+
+    benDon.login(username, password)
+
+    if args.check:
+        for ordering in benDon.getInProgressOrderings():
+            detail = BenDon.Detail(benDon.session, ordering["detailUrl"])
+            if len(detail.getOrderingDetails()) == 0:
+                retVal = 1
+    elif args.r:
+        for ordering in benDon.getInProgressOrderings():
+            detail = BenDon.Detail(benDon.session, ordering["detailUrl"])
+            if len(detail.getOrderingDetails()) == 0:
+                menu = BenDon.Menu(benDon.session, ordering["orderUrl"])
+                items = menu.getItemList()
+                numItem = len(items)
+                itemToOrder = items[random.randrange(0, numItem)]
+
+                menu.setNameForOrdering(name)
+                menu.setItemQty(itemToOrder, 1)
+                menu.setItemComment(itemToOrder, comment)
+                menu.sendOrder(benDon.session)
+
+                msg = ("You have ordered \'%s\' from \'%s\' as \'%s\'!"
+                      % (itemToOrder["name"], ordering["shopName"], name))
+
+                notify2.init("JiJiDinBenDon")
+                n = notify2.Notification("Lunch ordered!!", msg, "weather-storm")
+                n.show()
+
+    benDon.saveCookies(cookieFilePath)
+
+    return retVal
+
+def printGlobalHelp():
+    print("Avaliable command:")
+    print("  interactive")
+    print("  command")
+
 if __name__ == "__main__":
-    exit(cli(sys.argv[1:]))
+    if len(sys.argv) == 1:
+        printGlobalHelp()
+        exit(1)
+    modeName = sys.argv[1]
+
+    if modeName == "interactive":
+        modeToRun = interactiveMode
+    elif modeName == "command":
+        modeToRun = commandMode
+    else:
+        printGlobalHelp()
+        exit(1)
+
+    exit(modeToRun(sys.argv[2:]))
