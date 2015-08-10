@@ -48,7 +48,7 @@ def interactiveMode (args):
 
     if command == "o":
         # Choose which ordering to order
-        for i in range(0, len(orderings)):
+        for i in range(0, 5):
             ordering = orderings[i]
             creator = ordering["creator"]
             shopName = ordering["shopName"]
@@ -159,24 +159,27 @@ def commandMode(args):
                 retVal = 1
     elif args.r:
         for ordering in benDon.getInProgressOrderings():
-            detail = BenDon.Detail(benDon.session, ordering["detailUrl"])
-            if len(detail.getOrderingDetails()) == 0:
-                menu = BenDon.Menu(benDon.session, ordering["orderUrl"])
-                items = menu.getItemList()
-                numItem = len(items)
-                itemToOrder = items[random.randrange(0, numItem)]
+            menu = BenDon.Menu(benDon.session, ordering["orderUrl"])
+            items = menu.getItemList()
+            numItem = len(items)
+            itemToOrder = items[random.randrange(0, numItem)]
 
-                menu.setNameForOrdering(name)
-                menu.setItemQty(itemToOrder, 1)
-                menu.setItemComment(itemToOrder, comment)
-                menu.sendOrder(benDon.session)
+            # variation price
+            if itemToOrder["priceInput"] is not "":
+                priceToOrder = random.randrange(0, len(itemToOrder["price"]))
+                menu.setVariationPrice(itemToOrder, priceToOrder)
 
-                msg = ("You have ordered \'%s\' from \'%s\' as \'%s\'!"
-                      % (itemToOrder["name"], ordering["shopName"], name))
+            menu.setNameForOrdering(name)
+            menu.setItemQty(itemToOrder, 1)
+            menu.setItemComment(itemToOrder, comment)
+            menu.sendOrder(benDon.session)
 
-                notify2.init("JiJiDinBenDon")
-                n = notify2.Notification("Lunch ordered!!", msg, "weather-storm")
-                n.show()
+            msg = ("You have ordered \'%s\' from \'%s\' as \'%s\'!"
+                  % (itemToOrder["name"], ordering["shopName"], name))
+
+            notify2.init("JiJiDinBenDon")
+            n = notify2.Notification("Lunch ordered!!", msg, "weather-storm")
+            n.show()
 
     benDon.saveCookies(cookieFilePath)
 

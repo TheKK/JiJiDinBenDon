@@ -55,22 +55,28 @@ class Menu(object):
         self.menu_['commentInputs'] = []
         self.menu_['userInput'] = soup.find('table', 'lists').find('input')['name']
         self.menu_['urlToPost'] = BENDON_SITE + soup.find('form', id='addOrderItemForm')['action']
+        self.priceInputUrl = ""
+        self.variationPriceChosen = 0;
 
         for i in soup.find_all('tr', ['odd', 'even']):
             name = i.find('td', 'productName').div.string
             price = i.find('td', 'variationPrice').string
+            priceInputUrl = ""
             qtyInputName = i.find('td', 'qtyColumn').find('input')['name']
             commentInputName = i.find('td', 'commentColumn').find('input')['name']
 
             # Multiple prices
             if price is None:
-                price = ''
+                price = []
                 for label in i.find('td', 'variationPrice').find_all('label'):
-                    price = price.join(label.string + ' ')
+                    price.append(label)
+
+                priceInputUrl = i.find('td', 'variationPrice').find('input')["name"]
 
             item = {
                      "name": name,
-                     "price": price
+                     "price": price,
+                     "priceInput": priceInputUrl
                    }
             qtyInput = {
                          "name": qtyInputName,
@@ -87,6 +93,14 @@ class Menu(object):
 
     def getItemList(self):
         return self.menu_["items"]
+
+    def setVariationPrice(self, item, priceIndex):
+        if type(priceIndex) is not type(666):
+            print(type(priceIndex))
+            raise Exception("input priceIndex is not number")
+
+        self.priceInputUrl = item["priceInput"]
+        self.variationPriceChosen = priceIndex
 
     def setItemQty(self, item, qty):
         if type(qty) is not type(666):
@@ -115,6 +129,9 @@ class Menu(object):
 
         for commentInput in self.menu_["commentInputs"]:
             payload[commentInput["name"]] = str(commentInput["comment"])
+
+        if self.priceInputUrl:
+            payload[self.priceInputUrl] = self.variationPriceChosen
 
         session.post(urlToPost, data=payload)
 
