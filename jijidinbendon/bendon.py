@@ -158,7 +158,7 @@ class Detail(object):
             if tr.find('span', 'count'):
                 numYouOrder = tr.find('span', 'count').string.strip('x')
             else:
-                numYouOrder = 0
+                numYouOrder = 1
 
             yourOrder = {
                           "productName": productName,
