@@ -48,7 +48,7 @@ def interactiveMode (args):
 
     if command == "o":
         # Choose which ordering to order
-        for i in range(0, 5):
+        for i in range(0, len(orderings)):
             ordering = orderings[i]
             creator = ordering["creator"]
             shopName = ordering["shopName"]
