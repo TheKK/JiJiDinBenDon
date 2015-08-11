@@ -153,8 +153,8 @@ class Detail(object):
 
             productName = tr.find('td', 'mergeKey').div.string
             price = tr.find_all('td')[2].div.string
-            nameUsedForOrdering = tr.find('td', 'cell').div.span.a.span.string
-            urlToPost = BENDON_SITE + tr.find('td', 'cell').div.span.a['href']
+            nameUsedForOrdering = tr.find('td', 'deletable').div.span.a.span.string
+            urlToPost = BENDON_SITE + tr.find('td', 'deletable').div.span.a['href']
             if tr.find('span', 'count'):
                 numYouOrder = tr.find('span', 'count').string.strip('x')
             else:
