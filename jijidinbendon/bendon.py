@@ -96,7 +96,6 @@ class Menu(object):
 
     def setVariationPrice(self, item, priceIndex):
         if type(priceIndex) is not type(666):
-            print(type(priceIndex))
             raise Exception("input priceIndex is not number")
 
         self.priceInputUrl = item["priceInput"]
@@ -104,7 +103,6 @@ class Menu(object):
 
     def setItemQty(self, item, qty):
         if type(qty) is not type(666):
-            print(type(qty))
             raise Exception("input qty is not number")
 
         index = self.menu_["items"].index(item)
