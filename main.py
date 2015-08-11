@@ -70,6 +70,9 @@ def interactiveMode (args):
             print("[%d] %s\tprice: %s" % (i, item["name"], item["price"]))
 
         choosenItem = int(raw_input('which to order? '))
+        choosenPrice = None
+        if type(items[choosenItem]["price"]) is type([]):
+            choosenPrice = int(raw_input('which price to choose?(index start from zero) '))
         orderQty = int(raw_input('quantity to order? '))
         orderComment = raw_input('any comment? (default is nothing) ')
         username_for_ordering = ""
@@ -78,6 +81,8 @@ def interactiveMode (args):
 
         # Give me your personal information for free
         itemToOrder = items[choosenItem]
+        if choosenPrice is not None:
+            menu.setVariationPrice(itemToOrder, choosenPrice)
         menu.setNameForOrdering(username_for_ordering)
         menu.setItemQty(itemToOrder, orderQty)
         menu.setItemComment(itemToOrder, orderComment)

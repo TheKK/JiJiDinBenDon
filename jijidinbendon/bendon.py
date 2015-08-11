@@ -69,7 +69,7 @@ class Menu(object):
             if price is None:
                 price = []
                 for label in i.find('td', 'variationPrice').find_all('label'):
-                    price.append(label)
+                    price.append(label.string)
 
                 priceInputUrl = i.find('td', 'variationPrice').find('input')["name"]
 
