@@ -24,10 +24,18 @@ import time
 import random
 import argparse
 import notify2
+import requests
 import jijidinbendon as BenDon
 
-username = "guest"
-password = "guest"
+username = ""
+password = ""
+
+facebookToken = ""
+
+def facebookPost(msg):
+    s = requests.session();
+    payload = {"message": msg, "access_token": facebookToken }
+    s.post("https://graph.facebook.com/v2.4/me/feed", data=payload)
 
 def interactiveMode (args):
     benDon = BenDon.BenDonSession()
@@ -144,6 +152,8 @@ def commandMode(args):
                         help='ordering name')
     parser.add_argument('-p', action='store_true',
                         help='show popup message')
+    parser.add_argument('-f', action='store_true',
+                        help='post order result to Facebook')
     args = parser.parse_args(args)
 
     benDon = BenDon.BenDonSession()
@@ -182,9 +192,13 @@ def commandMode(args):
             msg = ("You have ordered \'%s\' from \'%s\' as \'%s\'!"
                   % (itemToOrder["name"], ordering["shopName"], name))
 
-            notify2.init("JiJiDinBenDon")
-            n = notify2.Notification("Lunch ordered!!", msg, "weather-storm")
-            n.show()
+            if args.p:
+                notify2.init("JiJiDinBenDon")
+                n = notify2.Notification("Lunch ordered!!", msg, "weather-storm")
+                n.show()
+
+            if args.f:
+                facebookPost(msg)
 
     benDon.saveCookies(cookieFilePath)
 
